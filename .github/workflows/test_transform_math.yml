@@ -1,26 +1,70 @@
-name: Test Transform Math
+# CI: bam_transform_math — C++ ROS 2 Jazzy
+# Epic: CM-44
+#
+# Builds and runs the GTest suite for the bam_transform_math package
+# inside a ROS 2 Jazzy Docker image on every push and pull request.
+
+name: bam_transform_math CI
 
 on:
   push:
+    paths:
+      - 'bam_transform_math/**'
+      - '.github/workflows/test_transform_math.yml'
   pull_request:
-
-permissions:
-  contents: read
+    paths:
+      - 'bam_transform_math/**'
+      - '.github/workflows/test_transform_math.yml'
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: Build & test (ROS 2 Jazzy / Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:jazzy-ros-base
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Install Eigen3 and GTest
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            ros-jazzy-eigen3-cmake-module \
+            libeigen3-dev \
+            libgtest-dev \
+            ros-jazzy-ament-cmake-gtest
 
-      - name: Install dependencies
-        run: pip install numpy pytest
+      - name: Set up ROS 2 workspace
+        run: |
+          mkdir -p /ros2_ws/src
+          cp -r bam_transform_math /ros2_ws/src/bam_transform_math
+
+      - name: Build package
+        working-directory: /ros2_ws
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build \
+            --packages-select bam_transform_math \
+            --cmake-args -DCMAKE_BUILD_TYPE=Release \
+            --event-handlers console_direct+
 
       - name: Run tests
-        run: pytest bam_transform_math/tests/ -v --tb=short
+        working-directory: /ros2_ws
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test \
+            --packages-select bam_transform_math \
+            --event-handlers console_direct+
+
+      - name: Report results
+        if: always()
+        working-directory: /ros2_ws
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon test-result --verbose

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bam_transform_math</name>
+  <version>0.1.0</version>
+  <description>
+    Minimal, dependency-light C++ library for rigid-body (SE3) transform math
+    used by the Baseball Avoidance Multirotor (BAM) ML relative pose estimation
+    pipeline.  Implements homogeneous transforms, quaternion/rotation-matrix
+    conversion, transform composition and inversion, and WP2 pixel-ray stubs.
+    Conventions follow /docs/data_contract.md exactly (scalar-first [w,x,y,z],
+    NED world frame, q_i2b direction).
+
+    Epic: CM-44
+  </description>
+
+  <maintainer email="newton@everythinglives.com">Newton Campbell</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Build dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Runtime: Eigen3 header-only linear algebra (ships with ROS 2 Jazzy) -->
+  <depend>eigen3_cmake_module</depend>
+
+  <!-- Test dependencies -->
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_cpplint</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
