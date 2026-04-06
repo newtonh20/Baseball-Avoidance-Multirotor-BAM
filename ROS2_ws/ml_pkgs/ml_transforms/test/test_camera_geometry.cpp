@@ -1,19 +1,19 @@
 #include <gtest/gtest.h>
 
-#include <stdexcept>
+#include <Eigen/Core>
 
 #include "ml_transforms/camera_geometry.hpp"
 
-TEST(CameraGeometryTest, PixelToRayThrowsUntilWP2)
-{
+TEST(CameraGeometryTest, PixelToRayThrowsStubLogicError) {
   EXPECT_THROW(
-    ml_transforms::pixelToRay(Eigen::Vector2d(100.0, 50.0), Eigen::Matrix3d::Identity()),
-    std::logic_error);
+      (void)ml_transforms::pixelToRay(Eigen::Vector2d(100.0, 200.0),
+                                      Eigen::Matrix3d::Identity()),
+      std::logic_error);
 }
 
-TEST(CameraGeometryTest, RayToPixelThrowsUntilWP2)
-{
+TEST(CameraGeometryTest, RayToPixelThrowsStubLogicError) {
   EXPECT_THROW(
-    ml_transforms::rayToPixel(Eigen::Vector3d(0.0, 0.0, 1.0), Eigen::Matrix3d::Identity()),
-    std::logic_error);
+      (void)ml_transforms::rayToPixel(Eigen::Vector3d(1.0, 0.0, 1.0),
+                                      Eigen::Matrix3d::Identity()),
+      std::logic_error);
 }

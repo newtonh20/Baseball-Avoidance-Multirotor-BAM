@@ -13,30 +13,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install build tools
         run: |
           apt-get update
-          apt-get install -y python3-colcon-common-extensions python3-rosdep
-
-      - name: Init rosdep
-        run: |
-          rosdep init || true
-          rosdep update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            ros-dev-tools
 
       - name: Install package dependencies
         run: |
-          . /opt/ros/jazzy/setup.sh
+          rosdep update
           rosdep install --from-paths ROS2_ws/ml_pkgs/ml_transforms --ignore-src -r -y
 
-      - name: Build
+      - name: Build ml_transforms
+        shell: bash
         run: |
-          . /opt/ros/jazzy/setup.sh
+          source /opt/ros/jazzy/setup.bash
           cd ROS2_ws
           colcon build --packages-select ml_transforms
 
-      - name: Test
+      - name: Test ml_transforms
+        shell: bash
         run: |
-          . /opt/ros/jazzy/setup.sh
+          source /opt/ros/jazzy/setup.bash
           cd ROS2_ws
           colcon test --packages-select ml_transforms
           colcon test-result --verbose

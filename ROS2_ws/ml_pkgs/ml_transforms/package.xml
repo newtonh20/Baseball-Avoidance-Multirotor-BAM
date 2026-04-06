@@ -2,9 +2,8 @@
 <package format="3">
   <name>ml_transforms</name>
   <version>0.1.0</version>
-  <description>Dependency-light ROS 2 Jazzy C++ transform math library for Baseball Avoidance Multirotor ML relative pose workflows.</description>
-
-  <maintainer email="bam-dev@example.com">BAM Dev Team</maintainer>
+  <description>Dependency-light transform and quaternion math library for BAM synthetic ML relative-pose workflows.</description>
+  <maintainer email="bam-dev@example.com">BAM Team</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
