@@ -1,0 +1,42 @@
+name: test_ml_transforms
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ros:jazzy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            ros-dev-tools
+
+      - name: Install package dependencies
+        run: |
+          rosdep update
+          rosdep install --from-paths ROS2_ws/ml_pkgs/ml_transforms --ignore-src -r -y
+
+      - name: Build ml_transforms
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cd ROS2_ws
+          colcon build --packages-select ml_transforms
+
+      - name: Test ml_transforms
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cd ROS2_ws
+          colcon test --packages-select ml_transforms
+          colcon test-result --verbose
