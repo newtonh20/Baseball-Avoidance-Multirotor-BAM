@@ -1,0 +1,83 @@
+# .github/workflows/test_ml_transforms.yml
+# CI for the ml_transforms ROS2 Jazzy ament_python package.
+#
+# Strategy
+# --------
+# Two jobs:
+#   1. pytest-only  – fast, pure Python, no ROS2 install required.
+#      Runs on every push / PR.  This is the primary regression gate.
+#   2. colcon-test  – full ROS2 Jazzy colcon build + test.
+#      Validates package.xml / setup.py / ament integration.
+
+name: ml_transforms tests
+
+on:
+  push:
+    paths:
+      - 'ROS2_ws/ml_pkgs/ml_transforms/**'
+      - '.github/workflows/test_ml_transforms.yml'
+  pull_request:
+    paths:
+      - 'ROS2_ws/ml_pkgs/ml_transforms/**'
+      - '.github/workflows/test_ml_transforms.yml'
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Job 1 – fast pytest (no ROS2 needed)
+  # -------------------------------------------------------------------------
+  pytest:
+    name: pytest (Python 3.12, no ROS2)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install numpy pytest
+
+      - name: Install ml_transforms (editable)
+        working-directory: ROS2_ws/ml_pkgs/ml_transforms
+        run: pip install -e .
+
+      - name: Run tests
+        working-directory: ROS2_ws/ml_pkgs/ml_transforms
+        run: pytest test/ -v --tb=short
+
+  # -------------------------------------------------------------------------
+  # Job 2 – full ROS2 Jazzy colcon build + test
+  # -------------------------------------------------------------------------
+  colcon:
+    name: colcon test (ROS2 Jazzy)
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:jazzy-ros-base
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install numpy + pytest inside container
+        run: |
+          apt-get update -q
+          apt-get install -y python3-numpy python3-pytest
+
+      - name: Create colcon workspace overlay
+        run: |
+          mkdir -p /ws/src
+          cp -r ROS2_ws/ml_pkgs/ml_transforms /ws/src/ml_transforms
+
+      - name: colcon build
+        working-directory: /ws
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          colcon build --packages-select ml_transforms
+
+      - name: colcon test
+        working-directory: /ws
+        run: |
+          . /opt/ros/jazzy/setup.sh
+          . install/setup.sh
+          colcon test --packages-select ml_transforms --event-handlers console_direct+
+          colcon test-result --verbose
