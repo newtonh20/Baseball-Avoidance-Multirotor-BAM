@@ -1,18 +1,16 @@
 <?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ml_transforms</name>
   <version>0.1.0</version>
-  <description>Dependency-light ROS 2 Jazzy C++ transform math library for Baseball Avoidance Multirotor ML relative pose workflows.</description>
-
-  <maintainer email="bam-dev@example.com">BAM Dev Team</maintainer>
+  <description>Minimal ROS 2 Jazzy C++ transform math library for BAM/FormationFlight ML relative pose workflows.</description>
+  <maintainer email="opensource@example.com">BAM Maintainers</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>eigen3_cmake_module</build_depend>
-  <build_depend>Eigen3</build_depend>
-  <exec_depend>eigen3_cmake_module</exec_depend>
-  <exec_depend>Eigen3</exec_depend>
+  <depend>eigen3_cmake_module</depend>
+  <depend>Eigen3</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
 

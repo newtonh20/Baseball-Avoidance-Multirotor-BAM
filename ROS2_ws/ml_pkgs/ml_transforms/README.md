@@ -1,66 +1,43 @@
 # ml_transforms
 
-`ml_transforms` is a ROS 2 Jazzy C++ library package that provides robust, dependency-light rigid-body transform and quaternion math utilities for the Baseball Avoidance Multirotor / FormationFlight synthetic ML relative pose pipeline.
+`ml_transforms` is a dependency-light ROS 2 Jazzy C++ library package for rigid transform math used by the Baseball Avoidance Multirotor (BAM) / FormationFlight synthetic ML relative pose pipeline.
 
-This package is a reusable **library** (`ament_cmake` + Eigen) and is intentionally not a ROS node package.
-
----
+It is intentionally a **library package** (`ament_cmake`) with no required runtime node executable. Other ROS 2 packages and plain C++ modules can link against it.
 
 ## Purpose
 
-The library provides:
+This package provides deterministic, tested primitives for:
 
-- deterministic SE(3) transform construction from position + quaternion
-- robust transform composition and analytic inversion
-- quaternion `[w, x, y, z]` (scalar-first) ⇄ rotation matrix conversion
-- homogeneous 4x4 conversion helpers
-- WP2 camera pixel↔ray API stubs (currently throw `logic_error` intentionally)
+- Building rigid transforms from position + quaternion
+- Composing transforms (`T_AC = T_AB * T_BC`)
+- Inverting transforms analytically (without generic 4x4 inverse)
+- Converting quaternion `[w,x,y,z]` to/from rotation matrices
+- Converting transform objects to/from 4x4 homogeneous matrices
+- Placeholder camera pixel/ray helpers for WP2 integration
 
-This supports workflows involving lead/trail aircraft relative pose labels such as:
+## Data-contract conventions (critical)
 
-- `relative_position_body`
-- `relative_quaternion_wxyz`
+These conventions are mandatory and reflected in the API and tests:
 
----
+1. **Quaternion storage order is scalar-first**: `[w, x, y, z]`.
+2. **Stored quaternion direction is `q_i2b`**: rotates vectors from inertial world NED into body frame.
+3. **World frame is right-handed NED**:
+   - `X = North`
+   - `Y = East`
+   - `Z = Down`
+4. **Altitude sign in stored `pos_z_m` is negative-up** due to NED `+Z Down`.
+5. **Camera extrinsic `T_BoC` is supported in composition APIs**, while camera projection details are deferred to WP2.
 
-## Non-negotiable project conventions
+## ROS quaternion warning
 
-### 1) Quaternion storage order is scalar-first: `[w, x, y, z]`
+ROS messages (`geometry_msgs::msg::Quaternion`) store quaternion fields as `x, y, z, w`, while this library uses `w, x, y, z`.
 
-This package assumes scalar-first quaternions in every API.
-
-> ⚠️ Important: this differs from `geometry_msgs::msg::Quaternion` field ordering (`x, y, z, w`) and many libraries (e.g., SciPy default conventions).
-
-### 2) Stored quaternion direction is `q_i2b`
-
-`q_i2b` rotates vectors from inertial/world NED into body frame:
-
-\[
-\mathbf{v}_b = R_{i2b}\,\mathbf{v}_i
-\]
-
-### 3) World frame is NED, right-handed
-
-- `X = North`
-- `Y = East`
-- `Z = Down`
-
-Altitude therefore appears as negative-up when stored in `pos_z_m`.
-
-### 4) Camera extrinsic `T_BoC`
-
-The library supports composition with camera/body optical transforms (e.g. `T_WC = T_WB * T_BoC`) even though production camera numbers may still be TBD.
-
-### 5) Synthetic ML relative pose pipeline alignment
-
-The API is intentionally minimal and explicit for downstream dataset assembly and ROS2 consumers.
-
----
+When bridging between ROS messages and this library, always reorder explicitly.
 
 ## Package structure
 
 ```text
-ROS2_ws/ml_pkgs/ml_transforms/
+ROS2_ws/ml_pkgs/ml_transforms
 ├── CMakeLists.txt
 ├── package.xml
 ├── README.md
@@ -75,11 +52,9 @@ ROS2_ws/ml_pkgs/ml_transforms/
 └── .github/workflows/test_ml_transforms.yml
 ```
 
----
-
 ## Build and test
 
-From `ROS2_ws`:
+From your ROS 2 workspace root:
 
 ```bash
 colcon build --packages-select ml_transforms
@@ -87,108 +62,83 @@ colcon test --packages-select ml_transforms
 colcon test-result --verbose
 ```
 
----
-
-## Public API overview
+## API overview
 
 Namespace: `ml_transforms`
 
-Core types:
-
-- `QuaternionWXYZ {w, x, y, z}`
-- `Transform {R, t}`
-
-Core functions:
-
-- `makeTransform(position, q_wxyz)`
-- `composeTransforms(T_AB, T_BC)`
-- `invertTransform(T)`
-- `quatToRotmat(q_wxyz)`
-- `rotmatToQuat(R)`
-- `toHomogeneousMatrix(T)` / `fromHomogeneousMatrix(H)`
-- `applyTransform(T_AB, p_B)`
-- `applyRotation(R_AB, v_B)`
-- `pixelToRay(...)` / `rayToPixel(...)` (WP2 stubs)
-
----
+- `struct QuaternionWXYZ { double w, x, y, z; }`
+- `struct Transform { Eigen::Matrix3d R; Eigen::Vector3d t; }`
+- `Transform makeTransform(position, q_wxyz)`
+- `Transform composeTransforms(T_AB, T_BC)`
+- `Transform invertTransform(T)`
+- `Eigen::Matrix3d quatToRotmat(q_wxyz)`
+- `QuaternionWXYZ rotmatToQuat(R)`
+- `Eigen::Matrix4d toHomogeneousMatrix(T)`
+- `Transform fromHomogeneousMatrix(H)`
+- `pixelToRay(...)`, `rayToPixel(...)` (WP2 stubs that currently throw)
 
 ## Usage examples
 
-### Build `T_WB` from NED position + scalar-first quaternion
+### 1) Build `T_WB` from position + scalar-first quaternion
 
 ```cpp
 #include "ml_transforms/transform_math.hpp"
 
-Eigen::Vector3d p_WB_ned(120.0, 15.0, -45.0);  // Z-down convention
-ml_transforms::QuaternionWXYZ q_i2b{0.9238795, 0.0, 0.0, 0.3826834};
-ml_transforms::Transform T_WB = ml_transforms::makeTransform(p_WB_ned, q_i2b);
+using ml_transforms::QuaternionWXYZ;
+using ml_transforms::Transform;
+
+Eigen::Vector3d p_WB(12.0, -4.0, -150.0);  // NED: z is down
+QuaternionWXYZ q_i2b{0.9238795, 0.0, 0.0, 0.3826834};
+Transform T_WB = ml_transforms::makeTransform(p_WB, q_i2b);
 ```
 
-### Compose camera pose: `T_WC = T_WB * T_BoC`
+### 2) Compose with camera extrinsic `T_BoC`
 
 ```cpp
-ml_transforms::Transform T_BoC = ml_transforms::makeTransform(
-  Eigen::Vector3d(0.12, 0.0, 0.03),
-  ml_transforms::QuaternionWXYZ{1.0, 0.0, 0.0, 0.0});
+Transform T_BoC = ml_transforms::makeTransform(
+  Eigen::Vector3d(0.2, 0.0, 0.05),
+  QuaternionWXYZ{1.0, 0.0, 0.0, 0.0});
 
-ml_transforms::Transform T_WC = ml_transforms::composeTransforms(T_WB, T_BoC);
+Transform T_WC = ml_transforms::composeTransforms(T_WB, T_BoC);
 ```
 
-### Compute body-frame relative position from NED
+### 3) Relative position in body frame (`relative_position_body` style)
 
 ```cpp
-Eigen::Vector3d rel_ned = target_pos_ned - ownship_pos_ned;
-Eigen::Vector3d rel_body = ml_transforms::applyRotation(T_WB.R, rel_ned);
+Eigen::Vector3d relative_position_ned = target_pos_ned - ownship_pos_ned;
+Eigen::Vector3d relative_position_body = T_WB.R * relative_position_ned;  // q_i2b convention
 ```
 
-### Convert to homogeneous 4x4
+### 4) Convert to homogeneous matrix
 
 ```cpp
 Eigen::Matrix4d H_WB = ml_transforms::toHomogeneousMatrix(T_WB);
 ```
 
----
-
 ## Testing overview
 
-The package includes gtests covering:
+Tests include:
 
-- identity, composition, inversion, and homogeneous round-trips
-- 90° roll/pitch/yaw golden quaternion-to-rotation tests
-- quaternion/rotation round-trip numerical checks
-- explicit wrong-order (`xyzw` treated as `wxyz`) detection
-- malformed input exception paths
-- WP2 stub exceptions for camera geometry
-- contract-aligned examples (`q_i2b`, NED sign conventions)
-
-Golden checks are validated to `< 1e-6`.
-
----
+- Identity and inversion sanity checks
+- Golden 90° roll/pitch/yaw matrix tests
+- Composition associativity and known compositions
+- Quaternion order mismatch detection (`wxyz` vs accidental `xyzw`)
+- Quaternion and rotation round-trip checks
+- Homogeneous matrix validation and parsing checks
+- Contract-aligned `q_i2b`/`relative_position_body` example tests
+- Camera WP2 stubs throwing `std::logic_error`
 
 ## WP2 camera note
 
-`pixelToRay` and `rayToPixel` are intentionally unimplemented and throw:
+`pixelToRay(...)` and `rayToPixel(...)` are intentionally stubs in this package version and throw:
 
 - `pixelToRay: to be completed in WP2`
 - `rayToPixel: to be completed in WP2`
 
-This preserves API stability without introducing premature camera-model assumptions.
-
----
-
 ## Common pitfalls
 
-1. **Quaternion order confusion (`xyzw` vs `wxyz`)**
-   - Always reorder when crossing ROS message boundaries.
-
-2. **Direction confusion (`q_i2b`)**
-   - This package expects inertial→body rotation semantics.
-
-3. **NED sign errors**
-   - NED `z` increases downward; altitude-up is typically negative in stored `pos_z_m`.
-
-4. **Silent normalization assumptions**
-   - Quaternion APIs normalize internally and reject near-zero norms.
-
-5. **Assuming camera projection exists already**
-   - Pixel/ray helpers are stubs until WP2.
+1. **Wrong quaternion order** (`xyzw` passed where `wxyz` is expected).
+2. **Wrong rotation direction** (`q_b2i` mistaken for stored `q_i2b`).
+3. **NED sign confusion** (`pos_z_m` is down-positive; altitude up is negative).
+4. **Silent ROS bridge errors** if `geometry_msgs::msg::Quaternion` fields are copied without reordering.
+5. **Treating camera pixel/ray stubs as implemented geometry** before WP2.

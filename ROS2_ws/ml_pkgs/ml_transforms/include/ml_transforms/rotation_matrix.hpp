@@ -2,8 +2,11 @@
 
 #include <Eigen/Core>
 
+#include "ml_transforms/quaternion.hpp"
+
 namespace ml_transforms {
 
-bool isRotationMatrix(const Eigen::Matrix3d & R, double tolerance = 1e-9);
+Eigen::Matrix3d quatToRotmat(const QuaternionWXYZ& q_wxyz);
+QuaternionWXYZ rotmatToQuat(const Eigen::Matrix3d& R);
 
 }  // namespace ml_transforms

@@ -5,10 +5,11 @@ on:
   pull_request:
 
 jobs:
-  build-test:
+  build-and-test:
     runs-on: ubuntu-24.04
     container:
       image: ros:jazzy
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,25 +19,22 @@ jobs:
           apt-get update
           apt-get install -y python3-colcon-common-extensions python3-rosdep
 
-      - name: Init rosdep
+      - name: rosdep install
+        shell: bash
         run: |
-          rosdep init || true
+          source /opt/ros/jazzy/setup.bash
           rosdep update
-
-      - name: Install package dependencies
-        run: |
-          . /opt/ros/jazzy/setup.sh
           rosdep install --from-paths ROS2_ws/ml_pkgs/ml_transforms --ignore-src -r -y
 
-      - name: Build
+      - name: Build ml_transforms
+        shell: bash
         run: |
-          . /opt/ros/jazzy/setup.sh
-          cd ROS2_ws
-          colcon build --packages-select ml_transforms
+          source /opt/ros/jazzy/setup.bash
+          colcon build --packages-select ml_transforms --base-paths ROS2_ws/ml_pkgs
 
-      - name: Test
+      - name: Test ml_transforms
+        shell: bash
         run: |
-          . /opt/ros/jazzy/setup.sh
-          cd ROS2_ws
-          colcon test --packages-select ml_transforms
+          source /opt/ros/jazzy/setup.bash
+          colcon test --packages-select ml_transforms --base-paths ROS2_ws/ml_pkgs
           colcon test-result --verbose
